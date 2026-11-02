@@ -11,6 +11,9 @@ Se construyó paso a paso con el wizard de [docs/plan-frontend.md](docs/plan-fro
 - **Sesión:** login, registro (deja la sesión iniciada) y logout contra `/api/auth`. El JWT viaja en
   una cookie `HttpOnly` y cada POST, PUT y DELETE lleva el token CSRF. Si la sesión vence, la app lo
   avisa en el login y vuelve a la página donde estabas.
+- **Resumen** (`/dashboard`, página de inicio): totales, altas de los últimos 7 días y del mes (con la
+  variación frente al anterior), gráfico de altas por mes y últimos clientes. Para `admin` suma
+  usuarios: total, administradores, distribución por rol con su estado y últimos usuarios.
 - **Clientes** (`/customers`): listado paginado y ordenable, búsqueda por nombre, apellido y email,
   filtro por fecha de alta, y alta, edición y borrado (solo `admin`). El rol `user` solo consulta.
 - **Usuarios** (`/users`, solo `admin`): listado, filtros por email, rol y fecha, detalle, alta,

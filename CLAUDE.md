@@ -79,12 +79,12 @@ Cómo integrarse:
 ## Autenticación y rutas
 
 - `src/router.tsx` (React Router 8, `createBrowserRouter`): `/login` y `/register` bajo `GuestOnly`;
-  `/`, `/customers` y `/users` bajo `RequireAuth` + `AppLayout`; `/users` además bajo
+  `/` (redirige a `/dashboard`), `/dashboard`, `/customers` y `/users` bajo `RequireAuth` + `AppLayout`; `/users` además bajo
   `RequireRole role="admin"`; `*` es `NotFoundPage`.
 - `src/hooks/useAuth.ts`: `useMe()` (query `['auth','me']`, `null` sin sesión), `useCurrentUser()`
   (solo dentro de `RequireAuth`), `useLogin`, `useRegister` (registra e inicia sesión) y `useLogout`.
 - Tras login o registro no se navega a mano: `GuestOnly` ve el usuario en cache y redirige a
-  `location.state.from` (validado con `redirectTarget`) o a `/customers`.
+  `location.state.from` (validado con `redirectTarget`) o a `/dashboard`.
 - `src/queryClient.ts`: un 401 en cualquier query o mutation (salvo `meta.ignoreUnauthorized`, que usa
   el login) marca la sesión como expirada en `useSessionStore` y deja `me` en `null`; el login lo avisa.
   Solo se reintentan fallos de red y 5xx.
@@ -155,6 +155,23 @@ Cómo integrarse:
   `RequireRole` saca al usuario de `/users`.
 - Editar sin contraseña: `updateUser` omite `password` cuando está vacío. La API rechaza `""` (su
   `@Size(min = 8)` solo deja pasar `null`).
+
+## Resumen (dashboard)
+
+- `DashboardPage` (`/dashboard`, inicio tras el login) compone `CustomerSummary` y, solo para admin,
+  `UserSummary` (la API responde 403 a `GET /api/users` para el rol `user`).
+- No hay endpoint de estadísticas: `hooks/useDashboard.ts` saca cada número del `totalElements` de
+  una página de 1 con el filtro que toca (`createdFrom`/`createdTo`, `role`). Las claves van bajo
+  `['customers']`/`['users']`, así que las mutations también refrescan el resumen. Son 8 peticiones
+  de clientes (6 por los meses) y 3 de usuarios; si crece, conviene un endpoint `/api/stats`.
+- La fecha de referencia se fija al montar (`useState(() => new Date())`) y `utils/dates.ts` arma los
+  rangos (`daysAgo`, `lastMonths`) en `YYYY-MM-DD` local.
+- Componentes en `components/dashboard/`: `StatTile`, `DashboardCard`, `MonthlyBarChart` (una serie,
+  rótulo solo en el máximo y el mes actual, tooltip al pasar el mouse, tabla `sr-only`),
+  `RoleBreakdown` (barra apilada con hueco de 2px, leyenda con números y estado del último admin),
+  `RecentList` y `SeeAllLink`.
+- Colores de gráficos: tokens `chart-1`/`chart-2` en `index.css`, distintos por tema y validados
+  con el script de la skill `dataviz`. No reutilices los colores de estado (rose/amber/emerald) para series.
 
 ## Tema claro y oscuro
 
