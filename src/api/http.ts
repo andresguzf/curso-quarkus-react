@@ -22,6 +22,12 @@ export async function request<T>(path: string, schema: z.ZodType<T>, options: Re
   return schema.parse(await response.json())
 }
 
+// Como request, pero un 204 (sin cuerpo) se devuelve como null
+export async function requestOptional<T>(path: string, schema: z.ZodType<T>, options: RequestOptions = {}): Promise<T | null> {
+  const response = await send(path, options)
+  return response.status === 204 ? null : schema.parse(await response.json())
+}
+
 // Para respuestas sin cuerpo (204), como DELETE o logout
 export async function requestNoContent(path: string, options: RequestOptions = {}): Promise<void> {
   await send(path, options)

@@ -7,21 +7,22 @@ import type { User } from '@/schemas/user.schema'
 import { useFlashStore } from '@/store/useFlashStore'
 import { useSessionStore } from '@/store/useSessionStore'
 
-// Usuario de la sesión: null si no hay sesión (la API responde 401)
+// Usuario de la sesión: null si no hay sesión (la API responde 204). Un 401 solo llega con un token
+// inválido o vencido
 export function useMe() {
   const queryClient = useQueryClient()
   const markExpired = useSessionStore((state) => state.markExpired)
   return useQuery({
     queryKey: queryKeys.me,
     queryFn: async (): Promise<User | null> => {
-      try {
-        return await fetchMe()
-      } catch (error) {
-        if (!isApiError(error) || error.status !== 401) throw error
-        // Había un usuario en cache y la API ya no lo reconoce: el JWT venció
-        if (queryClient.getQueryData(queryKeys.me)) markExpired()
-        return null
-      }
+      const hadUser = queryClient.getQueryData(queryKeys.me) != null
+      const user = await fetchMe().catch((error: unknown) => {
+        if (isApiError(error) && error.status === 401) return null
+        throw error
+      })
+      // Había un usuario en cache y la API ya no lo reconoce: el JWT venció
+      if (hadUser && !user) markExpired()
+      return user
     },
     staleTime: 5 * 60_000,
   })

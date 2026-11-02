@@ -46,7 +46,7 @@ Quarkus en `http://localhost:8080` (`./mvnw quarkus:dev`). Sus reglas están en 
 
 | Recurso | Endpoints | Acceso |
 |---|---|---|
-| `/api/auth` | `GET /csrf`, `POST /register`, `POST /login`, `POST /logout`, `GET /me` | público / autenticado (`/me`, `/logout`) |
+| `/api/auth` | `GET /csrf`, `POST /register`, `POST /login`, `POST /logout`, `GET /me` | público (`/me` responde 204 sin sesión) |
 | `/api/customers` | `GET`, `GET /{id}`, `GET /email/{email}`, `GET /search`, `POST`, `PUT /{id}`, `DELETE /{id}` | `user` lee; `admin` CRUD |
 | `/api/users` | `GET`, `GET /{id}`, `POST`, `PUT /{id}`, `DELETE /{id}` | solo `admin` |
 
@@ -65,7 +65,7 @@ Cómo integrarse:
 ## Capa de datos
 
 - `src/api/http.ts`: único punto de salida a la API. `request(path, schema, options)` valida la
-  respuesta con Zod (`parse`); `requestNoContent` para 204. Agrega `credentials: 'include'` y, en
+  respuesta con Zod (`parse`); `requestOptional` devuelve `null` en un 204 (`/auth/me` sin sesión); `requestNoContent` para 204. Agrega `credentials: 'include'` y, en
   POST/PUT/DELETE, el header `X-CSRF-TOKEN` con la cookie `csrf-token` (si falta, la pide a
   `/auth/csrf`). Todo error sale como `ApiError` (`status`, `message`, `fieldErrors`); status `0`
   es un fallo de red.

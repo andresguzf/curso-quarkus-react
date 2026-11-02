@@ -1,10 +1,10 @@
-import { request, requestNoContent } from '@/api/http'
+import { request, requestNoContent, requestOptional } from '@/api/http'
 import type { LoginValues, RegisterValues } from '@/schemas/auth.schema'
 import { userSchema, type User } from '@/schemas/user.schema'
 
-// Usuario de la sesión; la API responde 401 si no hay sesión
-export function fetchMe(): Promise<User> {
-  return request('/auth/me', userSchema)
+// Usuario de la sesión, o null si no hay sesión (la API responde 204, no un error)
+export function fetchMe(): Promise<User | null> {
+  return requestOptional('/auth/me', userSchema)
 }
 
 // Deja el JWT en la cookie HttpOnly y devuelve el usuario
