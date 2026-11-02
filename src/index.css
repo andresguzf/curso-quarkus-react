@@ -1,0 +1,67 @@
+@import 'tailwindcss';
+
+/* Tokens de marca: los componentes usan brand-* en vez de un color fijo, así se cambia la paleta en un solo lugar */
+@theme {
+  --font-sans: 'Inter', ui-sans-serif, system-ui, sans-serif;
+
+  --color-brand-50: var(--color-indigo-50);
+  --color-brand-100: var(--color-indigo-100);
+  --color-brand-200: var(--color-indigo-200);
+  --color-brand-300: var(--color-indigo-300);
+  --color-brand-400: var(--color-indigo-400);
+  --color-brand-500: var(--color-indigo-500);
+  --color-brand-600: var(--color-indigo-600);
+  --color-brand-700: var(--color-indigo-700);
+  --color-brand-800: var(--color-indigo-800);
+  --color-brand-900: var(--color-indigo-900);
+  --color-brand-950: var(--color-indigo-950);
+
+  /* Barra de tiempo de los mensajes flash: al terminar, el mensaje se cierra (onAnimationEnd) */
+  --animate-flash-timer: flash-timer 5s linear forwards;
+
+  @keyframes flash-timer {
+    from {
+      transform: scaleX(1);
+    }
+    to {
+      transform: scaleX(0);
+    }
+  }
+}
+
+@layer base {
+  :root {
+    color-scheme: light dark;
+    /* La topbar sticky (h-16) no tapa el elemento enfocado ni el destino de un ancla */
+    scroll-padding-top: 5rem;
+  }
+
+  /* Sin la espera del doble toque en móvil */
+  a,
+  button,
+  input,
+  select,
+  label,
+  summary {
+    touch-action: manipulation;
+  }
+
+  body {
+    @apply bg-slate-50 font-sans text-slate-900 antialiased dark:bg-slate-950 dark:text-slate-100;
+  }
+}
+
+/* Con un modal abierto la página de fondo no se desplaza */
+body:has(dialog[open]) {
+  overflow: hidden;
+}
+
+/* Movimiento reducido: sin transiciones ni animaciones de entrada. La barra de los flash se mantiene
+   porque es el temporizador que los cierra (su avance es lento y lineal) */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  ::before,
+  ::after {
+    transition-duration: 0.01ms !important;
+  }
+}

@@ -4,10 +4,17 @@ Frontend en React con TypeScript para la API REST de clientes de `../3-quarkus-a
 
 ## Estado actual
 
-La app todavía no está generada: el repositorio solo tiene las skills, `skills-lock.json`, este
-archivo y `README.md`. El primer paso es crearla con la skill `react-rules`.
+Se construye por pasos según el wizard de `docs/plan-frontend.md` (marca cada paso al cerrarlo).
+Los 9 pasos están hechos: API paginada, scaffold, capa de datos, autenticación y rutas, layout y
+UI, mensajes flash, CRUD de clientes, administración de usuarios y revisión final (Web Interface
+Guidelines y checklist de `react-rules`). En desarrollo, `/ui-kit` (`UiKitPage`, ruta lazy que no entra al build) muestra todos los componentes.
 
 ```
+vite.config.ts      plugins react + tailwindcss, alias @/ → src/, proxy /api → localhost:8080
+src/index.css       @import 'tailwindcss' + @theme (fuente Inter, colores brand-* = indigo)
+.oxlintrc.json      linter oxlint (plantilla de Vite) con rules-of-hooks y exhaustive-deps
+.env.example        VITE_API_URL=/api (.env está en .gitignore)
+.claude/launch.json servidor de desarrollo para el navegador integrado (npm run dev, puerto 5173)
 .claude/skills/react-rules/SKILL.md            skill propia del proyecto
 .claude/skills/web-design-guidelines           symlink a .agents/skills/web-design-guidelines
 .agents/skills/web-design-guidelines/SKILL.md  skill de Vercel, registrada en skills-lock.json
@@ -39,7 +46,7 @@ Quarkus en `http://localhost:8080` (`./mvnw quarkus:dev`). Sus reglas están en 
 
 | Recurso | Endpoints | Acceso |
 |---|---|---|
-| `/api/auth` | `GET /csrf`, `POST /register`, `POST /login`, `POST /logout`, `GET /me` | público / autenticado (`/me`, `/logout`) |
+| `/api/auth` | `GET /csrf`, `POST /register`, `POST /login`, `POST /logout`, `GET /me` | público (`/me` responde 204 sin sesión) |
 | `/api/customers` | `GET`, `GET /{id}`, `GET /email/{email}`, `GET /search`, `POST`, `PUT /{id}`, `DELETE /{id}` | `user` lee; `admin` CRUD |
 | `/api/users` | `GET`, `GET /{id}`, `POST`, `PUT /{id}`, `DELETE /{id}` | solo `admin` |
 
@@ -55,10 +62,118 @@ Cómo integrarse:
   para `/api` → `http://localhost:8080`, así las cookies `SameSite=Strict` funcionan sin tocar el backend.
 - Las rutas y pantallas se adaptan al rol (`user` / `admin`), pero la autorización real la hace la API.
 
+## Capa de datos
+
+- `src/api/http.ts`: único punto de salida a la API. `request(path, schema, options)` valida la
+  respuesta con Zod (`parse`); `requestOptional` devuelve `null` en un 204 (`/auth/me` sin sesión); `requestNoContent` para 204. Agrega `credentials: 'include'` y, en
+  POST/PUT/DELETE, el header `X-CSRF-TOKEN` con la cookie `csrf-token` (si falta, la pide a
+  `/auth/csrf`). Todo error sale como `ApiError` (`status`, `message`, `fieldErrors`); status `0`
+  es un fallo de red.
+- `src/api/{authApi,customerApi,userApi}.ts`: una función por endpoint; nunca llamar `fetch`
+  directo desde componentes o hooks.
+- `src/schemas/`: respuestas (`customerSchema`, `userSchema`, `pageSchema(...)`, `errorSchema`)
+  y formularios (`customerFormSchema`, `userCreateSchema`, `userUpdateSchema`, `loginSchema`,
+  `registerSchema`) con los mismos límites y mensajes que la API. Los tipos salen con `z.infer`.
+- `src/utils/`: `toQueryString` (omite vacíos) y `readCookie`.
+
+## Autenticación y rutas
+
+- `src/router.tsx` (React Router 8, `createBrowserRouter`): `/login` y `/register` bajo `GuestOnly`;
+  `/`, `/customers` y `/users` bajo `RequireAuth` + `AppLayout`; `/users` además bajo
+  `RequireRole role="admin"`; `*` es `NotFoundPage`.
+- `src/hooks/useAuth.ts`: `useMe()` (query `['auth','me']`, `null` sin sesión), `useCurrentUser()`
+  (solo dentro de `RequireAuth`), `useLogin`, `useRegister` (registra e inicia sesión) y `useLogout`.
+- Tras login o registro no se navega a mano: `GuestOnly` ve el usuario en cache y redirige a
+  `location.state.from` (validado con `redirectTarget`) o a `/customers`.
+- `src/queryClient.ts`: un 401 en cualquier query o mutation (salvo `meta.ignoreUnauthorized`, que usa
+  el login) marca la sesión como expirada en `useSessionStore` y deja `me` en `null`; el login lo avisa.
+  Solo se reintentan fallos de red y 5xx.
+- Logout: primero `me = null`, después borrar el resto de la cache. Con `queryClient.clear()` las
+  páginas protegidas se renderizan sin usuario y `useCurrentUser` lanza.
+- Títulos de página con `<title>` dentro del componente (React 19).
+- Formularios: `Field` + control con `aria-describedby={describedBy(...)}` y errores de la API con
+  `applyApiErrors(error, setError, campos)`.
+
+## Layout y componentes UI
+
+- `AppLayout` = `AppHeader` (logo, `MainNav` según `navItemsFor(role)`, `UserMenu` con email, rol y
+  cerrar sesión; en móvil un menú hamburguesa) + `FlashArea` + `<Outlet />`.
+- Páginas de listado: `PageHeader` (título, descripción, acciones) + `ListLayout` con
+  `sidebar={<FilterSidebar activeCount onClear>…campos…</FilterSidebar>}`. En escritorio el sidebar
+  mide `w-72` y se colapsa a un riel `w-12` (se recuerda en `useUiStore`, persistido en localStorage);
+  en móvil es un drawer que abre `FilterToggleButton`. Los filtros se montan una sola vez.
+- `src/components/ui/`: `Button` (primary, secondary, danger, ghost; `loading`), `Input`,
+  `PasswordInput`, `Select`, `Field`, `Alert`, `Badge`, `Spinner`, `EmptyState`, `BrandMark`,
+  `Table`/`THead`/`TBody`/`Tr`/`Th`/`Td`/`SortableTh`/`SkeletonRows`, `Pagination` (page base 0,
+  tamaños `PAGE_SIZES`), `Modal` y `ConfirmDialog`.
+- `Modal` usa `<dialog>` nativo: solo se monta abierto y el ref callback llama a `showModal()` (foco
+  atrapado, Esc, fondo inerte). Foco inicial con `data-autofocus`, no `autoFocus` (corre antes de
+  `showModal` y se pierde). `dismissible={false}` mientras hay una operación en curso.
+- `ConfirmDialog` reemplaza a `window.confirm`; el foco arranca en Cancelar.
+- Menús y paneles flotantes se cierran con `useDismiss(open, onDismiss)` (clic fuera y Esc).
+- Mensajes flash: `flash.success|error|info(texto)` (de `store/useFlashStore`), pensado para los
+  `onSuccess`/`onError` de las mutations. `FlashArea` los apila bajo la topbar (sticky, alto 0: no
+  empuja el contenido); como máximo 4. Duran 5 s: el tiempo lo lleva la animación CSS
+  `animate-flash-timer` de la barra (`onAnimationEnd` cierra), que se pausa con hover o foco; la X
+  cierra antes. Errores con `role="alert"`, el resto `role="status"`. El logout los borra.
+- `utils/format.ts`: `roleLabels`, `formatDate`, `formatDateTime`. `utils/pagination.ts`: `pageWindow`,
+  `visibleRange`, `PAGE_SIZES`.
+
+## Listados: patrón de clientes (reutilizar en usuarios)
+
+- Estado del listado en la URL con `useListSearch(schema, filterKeys)`: `search` se deriva de
+  `useSearchParams` con un esquema Zod con `.catch()` (un valor inválido vuelve al de por defecto) y
+  la URL solo guarda lo que difiere del valor por defecto. `setFilters` vuelve a la página 0 y usa
+  `replace` (no llena el historial); página, tamaño y orden sí crean entradas (Atrás funciona).
+- Datos con `useCustomers(search)` (`placeholderData: keepPreviousData`; la tabla anterior se ve
+  atenuada mientras llega la nueva). Mutations en `hooks/useCustomers.ts`: invalidan
+  `queryKeys.customers.all` y lanzan el flash; el error de borrar va a un flash, los de crear y
+  editar al formulario.
+- Filtros: `TextFilter` (debounce de 300 ms con `useDebouncedCallback`, llamado desde el onChange; el
+  input sigue a la URL cuando cambia por fuera con el patrón "ajustar estado al cambiar una prop") y
+  `DateRangeFilter` (inmediato, `min`/`max` evitan rangos invertidos).
+- Página contenedora (`CustomersPage`) + componentes de presentación (`CustomerFilters`,
+  `CustomerTable`, `CustomerForm`) + contenedor del modal (`CustomerFormModal`, montado con
+  `key={id ?? 'new'}`). El formulario recibe `onSubmit` que devuelve una promesa; si falla, aplica
+  los errores con `applyApiErrors(..., conflictField)` (un 409 de email se muestra en el campo).
+- Borrar: `ConfirmDialog` y, si era el último de la página, vuelve a la anterior.
+- Rol `user`: misma tabla y filtros, sin "Nuevo" ni acciones por fila.
+- La búsqueda de la API distingue acentos: "mon" no encuentra "Mónica".
+
+## Usuarios (solo admin)
+
+- Mismo patrón que clientes (`useListSearch(userSearchSchema, userFilterKeys)`, `useUsers`,
+  `UserFilters`, `UserTable`, `UserForm`, `UserFormModal`) más `UserDetailModal` (Ver).
+- Roles fijos `user` y `admin` (no se crean roles); el admin cambia el rol al editar.
+- Reglas del backend repetidas en la UI con `userRules(target, currentUser, adminCount)`
+  (`utils/userRules.ts`): no eliminarse a sí mismo; el único admin no se elimina ni cambia de rol.
+  `adminCount` sale de `useAdminCount()` (`GET /api/users?role=admin&size=1` → `totalElements`).
+  Si igual llega un 409, su mensaje se muestra (flash o formulario).
+- Rol bloqueado: el formulario muestra el rol fijo y lo envía en un `<input type="hidden">`
+  (un `<select disabled>` llega como `undefined` a React Hook Form).
+- Quitarse el propio rol admin pide una confirmación extra; al guardar se actualiza `me` y
+  `RequireRole` saca al usuario de `/users`.
+- Editar sin contraseña: `updateUser` omite `password` cuando está vacío. La API rechaza `""` (su
+  `@Size(min = 8)` solo deja pasar `null`).
+
+## Accesibilidad y guías de interfaz (revisión del Paso 9)
+
+- Enlace "Saltar al contenido" (`#contenido` en el `<main>`), títulos h1 → h2 sin saltos.
+- Inputs con `name`, `autocomplete` y `spellCheck={false}` en emails; los errores de la API llevan
+  el foco al primer campo con error.
+- Animar solo `transform` y `opacity` (nunca `transition: all` ni el ancho); con movimiento reducido
+  se anulan las transiciones (la barra de los flash sigue, es su temporizador).
+- `tabular-nums` en fechas y contadores; `theme-color` claro y oscuro en `index.html`;
+  `touch-action: manipulation` y `scroll-padding-top` (topbar sticky) en `index.css`.
+- Textos `sr-only` dentro de tablas: el contenedor de `Table` es `relative`, o ensanchan la página.
+
 ## Comandos
 
-Disponibles una vez generada la app: `npm run dev`, `npm run build`, `npm run lint` y
-`npx tsc --noEmit`. Node.js `^20.19.0 || >=22.12.0` (requisito de Vite).
+`npm run dev` (puerto 5173), `npm run build` (incluye `tsc -b`), `npm run lint` (oxlint) y
+`npx tsc -b` para solo tipar. Node.js `^20.19.0 || >=22.12.0` (requisito de Vite).
+
+Convenciones de código: TypeScript `strict`, imports con `@/`, comillas simples y sin punto y coma
+(estilo de la plantilla de Vite).
 
 ## Available skills
 
