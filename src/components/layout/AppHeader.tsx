@@ -5,6 +5,7 @@ import { MainNav } from '@/components/layout/MainNav'
 import { navItemsFor } from '@/components/layout/navItems'
 import { UserMenu } from '@/components/layout/UserMenu'
 import { BrandMark } from '@/components/ui/BrandMark'
+import { ThemeToggle } from '@/components/ui/ThemeToggle'
 import { useCurrentUser } from '@/hooks/useAuth'
 
 export function AppHeader() {
@@ -35,7 +36,8 @@ export function AppHeader() {
           <MainNav items={items} />
         </nav>
 
-        <div className="ml-auto">
+        <div className="ml-auto flex items-center gap-3">
+          <ThemeToggle />
           <UserMenu />
         </div>
       </div>

@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react'
 import { BrandMark } from '@/components/ui/BrandMark'
+import { ThemeToggle } from '@/components/ui/ThemeToggle'
 
 type Props = {
   title: string
@@ -11,7 +12,8 @@ type Props = {
 // Marco de las páginas públicas: tarjeta centrada con la marca arriba y un enlace alternativo abajo
 export function AuthLayout({ title, description, footer, children }: Props) {
   return (
-    <main className="flex min-h-dvh items-center justify-center bg-gradient-to-b from-brand-50 to-slate-50 px-4 py-12 dark:from-slate-900 dark:to-slate-950">
+    <main className="relative flex min-h-dvh items-center justify-center bg-gradient-to-b from-brand-50 to-slate-50 px-4 py-12 dark:from-slate-900 dark:to-slate-950">
+      <ThemeToggle className="absolute top-4 right-4" />
       <div className="w-full max-w-sm">
         <div className="mb-8 flex flex-col items-center text-center">
           <BrandMark className="size-12 [&_svg]:size-6" />

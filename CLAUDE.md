@@ -11,7 +11,7 @@ Guidelines y checklist de `react-rules`). En desarrollo, `/ui-kit` (`UiKitPage`,
 
 ```
 vite.config.ts      plugins react + tailwindcss, alias @/ → src/, proxy /api → localhost:8080
-src/index.css       @import 'tailwindcss' + @theme (fuente Inter, colores brand-* = indigo)
+src/index.css       @import 'tailwindcss' + @theme (fuente Inter, colores brand-* = indigo) + tema claro estilo Apple
 .oxlintrc.json      linter oxlint (plantilla de Vite) con rules-of-hooks y exhaustive-deps
 .env.example        VITE_API_URL=/api (.env está en .gitignore)
 .claude/launch.json servidor de desarrollo para el navegador integrado (npm run dev, puerto 5173)
@@ -156,6 +156,20 @@ Cómo integrarse:
 - Editar sin contraseña: `updateUser` omite `password` cuando está vacío. La API rechaza `""` (su
   `@Size(min = 8)` solo deja pasar `null`).
 
+## Tema claro y oscuro
+
+- Switch `ThemeToggle` (`role="switch"`) en la topbar (`AppHeader`) y en las páginas públicas (`AuthLayout`).
+- `useThemeStore` (Zustand, persistido en `theme-preference`): sin elección guardada usa el tema del
+  sistema. Aplica la clase `dark` en `<html>` y el `theme-color`; el script inline de `index.html`
+  hace lo mismo antes del primer pintado (sin parpadeo). Si cambias la clave, cámbiala en los dos.
+- `@custom-variant dark` en `index.css`: las variantes `dark:` dependen de la clase, no de
+  `prefers-color-scheme`.
+- **Tema oscuro:** el original (slate + indigo, Inter). **Tema claro:** look de Apple. `:root:not(.dark)`
+  redefine las variables de la paleta: `slate-*` como grises de Apple (`#f5f5f7`, `#1d1d1f`…),
+  `brand-*` como azul `#0071e3` y `rose`/`emerald`/`amber` con los colores de estado de Apple. También
+  usa la fuente del sistema (SF Pro), radios algo mayores y botones píldora (`rounded-button`).
+  Los componentes siguen usando `slate-*`/`brand-*` y sus variantes `dark:`; no hay que tocarlos.
+
 ## Accesibilidad y guías de interfaz (revisión del Paso 9)
 
 - Enlace "Saltar al contenido" (`#contenido` en el `<main>`), títulos h1 → h2 sin saltos.
@@ -163,7 +177,7 @@ Cómo integrarse:
   el foco al primer campo con error.
 - Animar solo `transform` y `opacity` (nunca `transition: all` ni el ancho); con movimiento reducido
   se anulan las transiciones (la barra de los flash sigue, es su temporizador).
-- `tabular-nums` en fechas y contadores; `theme-color` claro y oscuro en `index.html`;
+- `tabular-nums` en fechas y contadores; `theme-color` según el tema (lo cambia `useThemeStore`);
   `touch-action: manipulation` y `scroll-padding-top` (topbar sticky) en `index.css`.
 - Textos `sr-only` dentro de tablas: el contenedor de `Table` es `relative`, o ensanchan la página.
 

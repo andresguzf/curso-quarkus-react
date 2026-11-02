@@ -21,7 +21,7 @@ Se construyó paso a paso con el wizard de [docs/plan-frontend.md](docs/plan-fro
 - **Mensajes flash** al crear, editar o eliminar: aparecen bajo la barra superior, duran 5 s, se
   pausan con el mouse encima y se cierran con la X.
 - **Confirmación de borrado** en una ventana modal propia (no `window.confirm`).
-- Diseño con Tailwind, modo oscuro automático, adaptado a móvil y accesible con teclado y lector de
+- Diseño con Tailwind, switch de tema claro (estilo Apple) y oscuro, adaptado a móvil y accesible con teclado y lector de
   pantalla.
 
 ## Stack
@@ -53,7 +53,7 @@ Se construyó paso a paso con el wizard de [docs/plan-frontend.md](docs/plan-fro
 │   ├── main.tsx                      # punto de entrada: QueryClient + router
 │   ├── router.tsx                    # rutas públicas, protegidas y solo admin
 │   ├── queryClient.ts                # React Query y manejo de sesión vencida (401)
-│   ├── index.css                     # Tailwind y tokens de marca (@theme)
+│   ├── index.css                     # Tailwind, tokens de marca (@theme) y paleta del tema claro
 │   ├── api/                          # cliente HTTP con CSRF y funciones por recurso
 │   ├── schemas/                      # esquemas Zod (respuestas, formularios, URL)
 │   ├── store/                        # Zustand: sesión, flash y preferencias de UI
