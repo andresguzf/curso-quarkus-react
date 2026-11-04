@@ -11,6 +11,9 @@ Se construyó paso a paso con el wizard de [docs/plan-frontend.md](docs/plan-fro
 - **Sesión:** login, registro (deja la sesión iniciada) y logout contra `/api/auth`. El JWT viaja en
   una cookie `HttpOnly` y cada POST, PUT y DELETE lleva el token CSRF. Si la sesión vence, la app lo
   avisa en el login y vuelve a la página donde estabas.
+- **Resumen** (`/dashboard`, página de inicio): totales, altas de los últimos 7 días y del mes (con la
+  variación frente al anterior), gráfico de altas por mes y últimos clientes. Para `admin` suma
+  usuarios: total, administradores, distribución por rol con su estado y últimos usuarios.
 - **Clientes** (`/customers`): listado paginado y ordenable, búsqueda por nombre, apellido y email,
   filtro por fecha de alta, y alta, edición y borrado (solo `admin`). El rol `user` solo consulta.
 - **Usuarios** (`/users`, solo `admin`): listado, filtros por email, rol y fecha, detalle, alta,
@@ -21,7 +24,7 @@ Se construyó paso a paso con el wizard de [docs/plan-frontend.md](docs/plan-fro
 - **Mensajes flash** al crear, editar o eliminar: aparecen bajo la barra superior, duran 5 s, se
   pausan con el mouse encima y se cierran con la X.
 - **Confirmación de borrado** en una ventana modal propia (no `window.confirm`).
-- Diseño con Tailwind, modo oscuro automático, adaptado a móvil y accesible con teclado y lector de
+- Diseño con Tailwind, switch de tema claro (estilo Apple) y oscuro, adaptado a móvil y accesible con teclado y lector de
   pantalla.
 
 ## Stack
@@ -53,7 +56,7 @@ Se construyó paso a paso con el wizard de [docs/plan-frontend.md](docs/plan-fro
 │   ├── main.tsx                      # punto de entrada: QueryClient + router
 │   ├── router.tsx                    # rutas públicas, protegidas y solo admin
 │   ├── queryClient.ts                # React Query y manejo de sesión vencida (401)
-│   ├── index.css                     # Tailwind y tokens de marca (@theme)
+│   ├── index.css                     # Tailwind, tokens de marca (@theme) y paleta del tema claro
 │   ├── api/                          # cliente HTTP con CSRF y funciones por recurso
 │   ├── schemas/                      # esquemas Zod (respuestas, formularios, URL)
 │   ├── store/                        # Zustand: sesión, flash y preferencias de UI
@@ -64,7 +67,7 @@ Se construyó paso a paso con el wizard de [docs/plan-frontend.md](docs/plan-fro
 │   └── utils/                        # funciones puras (formato, paginación, reglas de usuarios)
 ├── .env.example                      # VITE_API_URL=/api
 ├── .oxlintrc.json                    # reglas del linter (oxlint)
-├── vite.config.ts                    # React, Tailwind, alias @/ y proxy /api → :8080
+├── vite.config.ts                    # React, Tailwind, alias @/ y proxy /api → API_PROXY_TARGET (:8080)
 ├── tsconfig*.json                    # TypeScript strict
 ├── skills-lock.json                  # origen y hash de las skills instaladas
 ├── CLAUDE.md                         # instrucciones del proyecto para Claude Code
@@ -91,7 +94,8 @@ Revisa la accesibilidad de src/components
 ## Requisitos
 
 - Node.js 20.19 o superior (o 22.12 o superior), que exige Vite.
-- La API Quarkus en ejecución (`./mvnw quarkus:dev` en `3-quarkus-api`, puerto `8080`).
+- La API Quarkus en ejecución (`./mvnw quarkus:dev` en `3-quarkus-api`, puerto `8080`), o la de
+  Render con `API_PROXY_TARGET` (ver más abajo).
 
 ## Comandos
 
@@ -113,3 +117,36 @@ npm run build
 ```bash
 npm run lint
 ```
+
+### Probar el frontend local contra la API en Render
+
+El proxy de Vite lee `API_PROXY_TARGET` del `.env` (sin prefijo `VITE_`, así no llega al navegador):
+
+```bash
+API_PROXY_TARGET=https://curso-quarkus-api.onrender.com   # vacío o sin definir: http://localhost:8080
+```
+
+Reinicia `npm run dev` después de cambiarlo. Render manda las cookies con `Secure`: Chrome y Firefox
+las aceptan en `http://localhost`, Safari no (usa Chrome para esta prueba).
+
+## Desplegar en Vercel
+
+El backend está en Render (`https://curso-quarkus-api.onrender.com`). El frontend **no** lo llama
+directo: `vercel.json` reenvía `/api/*` a Render, igual que el proxy de Vite en desarrollo.
+
+```json
+{ "source": "/api/:path*", "destination": "https://curso-quarkus-api.onrender.com/api/:path*" }
+```
+
+- Para el navegador todo es el mismo origen (`tu-app.vercel.app`): la cookie de sesión
+  (`SameSite=Strict`) y el token CSRF funcionan sin CORS ni cambios en la API.
+- `VITE_API_URL` se queda en `/api` (también en Vercel). Si apuntara a la URL de Render, el
+  navegador no enviaría la cookie de sesión ni podría leer la de CSRF.
+- La segunda regla (`/(.*)` → `/index.html`) hace que recargar una ruta de React Router
+  (`/customers`, `/users`…) no dé 404.
+
+En Vercel: importa el repositorio; detecta Vite solo (build `npm run build`, salida `dist`). En
+**Environment Variables** agrega `VITE_API_URL=/api` (el `.env` no se sube a git).
+
+En el plan gratuito de Render la API se duerme tras un rato sin uso: la primera petición puede
+tardar cerca de un minuto.

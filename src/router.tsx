@@ -4,6 +4,7 @@ import { RequireAuth } from '@/components/auth/RequireAuth'
 import { RequireRole } from '@/components/auth/RequireRole'
 import { AppLayout } from '@/layouts/AppLayout'
 import { CustomersPage } from '@/pages/CustomersPage'
+import { DashboardPage } from '@/pages/DashboardPage'
 import { LoginPage } from '@/pages/LoginPage'
 import { NotFoundPage } from '@/pages/NotFoundPage'
 import { RegisterPage } from '@/pages/RegisterPage'
@@ -23,7 +24,8 @@ export const router = createBrowserRouter([
       {
         element: <AppLayout />,
         children: [
-          { path: '/', element: <Navigate to="/customers" replace /> },
+          { path: '/', element: <Navigate to="/dashboard" replace /> },
+          { path: '/dashboard', element: <DashboardPage /> },
           { path: '/customers', element: <CustomersPage /> },
           {
             element: <RequireRole role="admin" />,

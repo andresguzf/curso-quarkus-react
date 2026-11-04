@@ -10,10 +10,11 @@ UI, mensajes flash, CRUD de clientes, administración de usuarios y revisión fi
 Guidelines y checklist de `react-rules`). En desarrollo, `/ui-kit` (`UiKitPage`, ruta lazy que no entra al build) muestra todos los componentes.
 
 ```
-vite.config.ts      plugins react + tailwindcss, alias @/ → src/, proxy /api → localhost:8080
-src/index.css       @import 'tailwindcss' + @theme (fuente Inter, colores brand-* = indigo)
+vite.config.ts      plugins react + tailwindcss, alias @/ → src/, proxy /api → API_PROXY_TARGET (por defecto localhost:8080)
+src/index.css       @import 'tailwindcss' + @theme (fuente Inter, colores brand-* = indigo) + tema claro estilo Apple
 .oxlintrc.json      linter oxlint (plantilla de Vite) con rules-of-hooks y exhaustive-deps
-.env.example        VITE_API_URL=/api (.env está en .gitignore)
+.env.example        VITE_API_URL=/api y API_PROXY_TARGET comentado (.env está en .gitignore)
+vercel.json         rewrites: /api/* → https://curso-quarkus-api.onrender.com/api/* y SPA → /index.html
 .claude/launch.json servidor de desarrollo para el navegador integrado (npm run dev, puerto 5173)
 .claude/skills/react-rules/SKILL.md            skill propia del proyecto
 .claude/skills/web-design-guidelines           symlink a .agents/skills/web-design-guidelines
@@ -60,6 +61,9 @@ Cómo integrarse:
 - **Errores:** la API siempre responde un `ErrorDto` JSON; valídalo con Zod y muestra su mensaje.
 - **Mismo origen:** la API no tiene CORS configurado. En desarrollo usa el `server.proxy` de Vite
   para `/api` → `http://localhost:8080`, así las cookies `SameSite=Strict` funcionan sin tocar el backend.
+  `API_PROXY_TARGET=https://curso-quarkus-api.onrender.com` en `.env` prueba el dev server contra Render
+  (`changeOrigin: true`; cookies `Secure`: Chrome sí, Safari no). En producción (Vercel) hace lo mismo `vercel.json` hacia Render; `VITE_API_URL` sigue en `/api`.
+  Nunca pongas la URL de Render en `VITE_API_URL`: sitio distinto = sin cookie de sesión ni CSRF.
 - Las rutas y pantallas se adaptan al rol (`user` / `admin`), pero la autorización real la hace la API.
 
 ## Capa de datos
@@ -79,12 +83,12 @@ Cómo integrarse:
 ## Autenticación y rutas
 
 - `src/router.tsx` (React Router 8, `createBrowserRouter`): `/login` y `/register` bajo `GuestOnly`;
-  `/`, `/customers` y `/users` bajo `RequireAuth` + `AppLayout`; `/users` además bajo
+  `/` (redirige a `/dashboard`), `/dashboard`, `/customers` y `/users` bajo `RequireAuth` + `AppLayout`; `/users` además bajo
   `RequireRole role="admin"`; `*` es `NotFoundPage`.
 - `src/hooks/useAuth.ts`: `useMe()` (query `['auth','me']`, `null` sin sesión), `useCurrentUser()`
   (solo dentro de `RequireAuth`), `useLogin`, `useRegister` (registra e inicia sesión) y `useLogout`.
 - Tras login o registro no se navega a mano: `GuestOnly` ve el usuario en cache y redirige a
-  `location.state.from` (validado con `redirectTarget`) o a `/customers`.
+  `location.state.from` (validado con `redirectTarget`) o a `/dashboard`.
 - `src/queryClient.ts`: un 401 en cualquier query o mutation (salvo `meta.ignoreUnauthorized`, que usa
   el login) marca la sesión como expirada en `useSessionStore` y deja `me` en `null`; el login lo avisa.
   Solo se reintentan fallos de red y 5xx.
@@ -156,6 +160,37 @@ Cómo integrarse:
 - Editar sin contraseña: `updateUser` omite `password` cuando está vacío. La API rechaza `""` (su
   `@Size(min = 8)` solo deja pasar `null`).
 
+## Resumen (dashboard)
+
+- `DashboardPage` (`/dashboard`, inicio tras el login) compone `CustomerSummary` y, solo para admin,
+  `UserSummary` (la API responde 403 a `GET /api/users` para el rol `user`).
+- No hay endpoint de estadísticas: `hooks/useDashboard.ts` saca cada número del `totalElements` de
+  una página de 1 con el filtro que toca (`createdFrom`/`createdTo`, `role`). Las claves van bajo
+  `['customers']`/`['users']`, así que las mutations también refrescan el resumen. Son 8 peticiones
+  de clientes (6 por los meses) y 3 de usuarios; si crece, conviene un endpoint `/api/stats`.
+- La fecha de referencia se fija al montar (`useState(() => new Date())`) y `utils/dates.ts` arma los
+  rangos (`daysAgo`, `lastMonths`) en `YYYY-MM-DD` local.
+- Componentes en `components/dashboard/`: `StatTile`, `DashboardCard`, `MonthlyBarChart` (una serie,
+  rótulo solo en el máximo y el mes actual, tooltip al pasar el mouse, tabla `sr-only`),
+  `RoleBreakdown` (barra apilada con hueco de 2px, leyenda con números y estado del último admin),
+  `RecentList` y `SeeAllLink`.
+- Colores de gráficos: tokens `chart-1`/`chart-2` en `index.css`, distintos por tema y validados
+  con el script de la skill `dataviz`. No reutilices los colores de estado (rose/amber/emerald) para series.
+
+## Tema claro y oscuro
+
+- Switch `ThemeToggle` (`role="switch"`) en la topbar (`AppHeader`) y en las páginas públicas (`AuthLayout`).
+- `useThemeStore` (Zustand, persistido en `theme-preference`): sin elección guardada usa el tema del
+  sistema. Aplica la clase `dark` en `<html>` y el `theme-color`; el script inline de `index.html`
+  hace lo mismo antes del primer pintado (sin parpadeo). Si cambias la clave, cámbiala en los dos.
+- `@custom-variant dark` en `index.css`: las variantes `dark:` dependen de la clase, no de
+  `prefers-color-scheme`.
+- **Tema oscuro:** el original (slate + indigo, Inter). **Tema claro:** look de Apple. `:root:not(.dark)`
+  redefine las variables de la paleta: `slate-*` como grises de Apple (`#f5f5f7`, `#1d1d1f`…),
+  `brand-*` como azul `#0071e3` y `rose`/`emerald`/`amber` con los colores de estado de Apple. También
+  usa la fuente del sistema (SF Pro), radios algo mayores y botones píldora (`rounded-button`).
+  Los componentes siguen usando `slate-*`/`brand-*` y sus variantes `dark:`; no hay que tocarlos.
+
 ## Accesibilidad y guías de interfaz (revisión del Paso 9)
 
 - Enlace "Saltar al contenido" (`#contenido` en el `<main>`), títulos h1 → h2 sin saltos.
@@ -163,7 +198,7 @@ Cómo integrarse:
   el foco al primer campo con error.
 - Animar solo `transform` y `opacity` (nunca `transition: all` ni el ancho); con movimiento reducido
   se anulan las transiciones (la barra de los flash sigue, es su temporizador).
-- `tabular-nums` en fechas y contadores; `theme-color` claro y oscuro en `index.html`;
+- `tabular-nums` en fechas y contadores; `theme-color` según el tema (lo cambia `useThemeStore`);
   `touch-action: manipulation` y `scroll-padding-top` (topbar sticky) en `index.css`.
 - Textos `sr-only` dentro de tablas: el contenedor de `Table` es `relative`, o ensanchan la página.
 

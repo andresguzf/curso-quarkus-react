@@ -1,5 +1,8 @@
 @import 'tailwindcss';
 
+/* El tema lo elige el usuario con el switch: dark: aplica cuando <html> tiene la clase dark */
+@custom-variant dark (&:where(.dark, .dark *));
+
 /* Tokens de marca: los componentes usan brand-* en vez de un color fijo, así se cambia la paleta en un solo lugar */
 @theme {
   --font-sans: 'Inter', ui-sans-serif, system-ui, sans-serif;
@@ -16,6 +19,14 @@
   --color-brand-900: var(--color-indigo-900);
   --color-brand-950: var(--color-indigo-950);
 
+  /* Gráficos del dashboard (valores del tema oscuro; el claro los redefine). Validados con el
+     script de la skill dataviz contra la superficie de las tarjetas: chart-1 admin y barras, chart-2 user */
+  --color-chart-1: #6366f1;
+  --color-chart-2: #0d9488;
+
+  /* Radio de los botones (rounded-button): en el tema claro pasan a ser píldoras, como en Apple */
+  --radius-button: 0.5rem;
+
   /* Barra de tiempo de los mensajes flash: al terminar, el mensaje se cierra (onAnimationEnd) */
   --animate-flash-timer: flash-timer 5s linear forwards;
 
@@ -29,11 +40,89 @@
   }
 }
 
+/* Tema claro con el look de Apple: tipografía del sistema (SF Pro en Apple), grises neutros, azul
+   #0071e3 y colores de estado de Apple. Se redefinen las variables de la paleta solo sin la clase
+   dark, así los componentes no cambian y el tema oscuro queda igual (slate + indigo, Inter) */
+:root:not(.dark) {
+  --font-sans: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'SF Pro Display', 'Helvetica Neue', Helvetica, Arial, sans-serif;
+
+  --color-slate-50: #f5f5f7;
+  --color-slate-100: #e8e8ed;
+  --color-slate-200: #d2d2d7;
+  --color-slate-300: #c7c7cc;
+  --color-slate-400: #86868b;
+  --color-slate-500: #6e6e73;
+  --color-slate-600: #515154;
+  --color-slate-700: #424245;
+  --color-slate-800: #333336;
+  --color-slate-900: #1d1d1f;
+  --color-slate-950: #0a0a0b;
+
+  --color-brand-50: #f0f6ff;
+  --color-brand-100: #ddebff;
+  --color-brand-200: #b8d6ff;
+  --color-brand-300: #84b9ff;
+  --color-brand-400: #4a98f7;
+  --color-brand-500: #0077ed;
+  --color-brand-600: #0071e3;
+  --color-brand-700: #0066cc;
+  --color-brand-800: #00539f;
+  --color-brand-900: #003f7a;
+  --color-brand-950: #002651;
+
+  --color-rose-50: #fff2f1;
+  --color-rose-100: #ffe1df;
+  --color-rose-200: #ffc5c1;
+  --color-rose-300: #ff9d96;
+  --color-rose-400: #ff6961;
+  --color-rose-500: #ff3b30;
+  --color-rose-600: #d70015;
+  --color-rose-700: #b8000f;
+  --color-rose-800: #8f000c;
+  --color-rose-900: #6e0009;
+  --color-rose-950: #40000a;
+
+  --color-emerald-50: #effbf2;
+  --color-emerald-100: #d7f5df;
+  --color-emerald-200: #ade9be;
+  --color-emerald-300: #7bd895;
+  --color-emerald-400: #4cd26b;
+  --color-emerald-500: #34c759;
+  --color-emerald-600: #248a3d;
+  --color-emerald-700: #1d7032;
+  --color-emerald-800: #175a28;
+  --color-emerald-900: #10411d;
+  --color-emerald-950: #0a2a12;
+
+  --color-amber-50: #fff6e8;
+  --color-amber-100: #ffe9c7;
+  --color-amber-200: #ffd28a;
+  --color-amber-300: #ffb84d;
+  --color-amber-400: #ffa61f;
+  --color-amber-500: #ff9500;
+  --color-amber-600: #d97a00;
+  --color-amber-700: #b25000;
+  --color-amber-800: #8a3c00;
+  --color-amber-900: #6b2f00;
+  --color-amber-950: #3d1a00;
+
+  --color-chart-1: #0071e3;
+  --color-chart-2: #0a9bb0;
+
+  --radius-lg: 0.625rem;
+  --radius-2xl: 1.125rem;
+  --radius-button: 980px;
+}
+
 @layer base {
   :root {
-    color-scheme: light dark;
+    color-scheme: light;
     /* La topbar sticky (h-16) no tapa el elemento enfocado ni el destino de un ancla */
     scroll-padding-top: 5rem;
+  }
+
+  :root.dark {
+    color-scheme: dark;
   }
 
   /* Sin la espera del doble toque en móvil */
