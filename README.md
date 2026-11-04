@@ -67,7 +67,7 @@ Se construyó paso a paso con el wizard de [docs/plan-frontend.md](docs/plan-fro
 │   └── utils/                        # funciones puras (formato, paginación, reglas de usuarios)
 ├── .env.example                      # VITE_API_URL=/api
 ├── .oxlintrc.json                    # reglas del linter (oxlint)
-├── vite.config.ts                    # React, Tailwind, alias @/ y proxy /api → :8080
+├── vite.config.ts                    # React, Tailwind, alias @/ y proxy /api → API_PROXY_TARGET (:8080)
 ├── tsconfig*.json                    # TypeScript strict
 ├── skills-lock.json                  # origen y hash de las skills instaladas
 ├── CLAUDE.md                         # instrucciones del proyecto para Claude Code
@@ -94,7 +94,8 @@ Revisa la accesibilidad de src/components
 ## Requisitos
 
 - Node.js 20.19 o superior (o 22.12 o superior), que exige Vite.
-- La API Quarkus en ejecución (`./mvnw quarkus:dev` en `3-quarkus-api`, puerto `8080`).
+- La API Quarkus en ejecución (`./mvnw quarkus:dev` en `3-quarkus-api`, puerto `8080`), o la de
+  Render con `API_PROXY_TARGET` (ver más abajo).
 
 ## Comandos
 
@@ -116,3 +117,36 @@ npm run build
 ```bash
 npm run lint
 ```
+
+### Probar el frontend local contra la API en Render
+
+El proxy de Vite lee `API_PROXY_TARGET` del `.env` (sin prefijo `VITE_`, así no llega al navegador):
+
+```bash
+API_PROXY_TARGET=https://curso-quarkus-api.onrender.com   # vacío o sin definir: http://localhost:8080
+```
+
+Reinicia `npm run dev` después de cambiarlo. Render manda las cookies con `Secure`: Chrome y Firefox
+las aceptan en `http://localhost`, Safari no (usa Chrome para esta prueba).
+
+## Desplegar en Vercel
+
+El backend está en Render (`https://curso-quarkus-api.onrender.com`). El frontend **no** lo llama
+directo: `vercel.json` reenvía `/api/*` a Render, igual que el proxy de Vite en desarrollo.
+
+```json
+{ "source": "/api/:path*", "destination": "https://curso-quarkus-api.onrender.com/api/:path*" }
+```
+
+- Para el navegador todo es el mismo origen (`tu-app.vercel.app`): la cookie de sesión
+  (`SameSite=Strict`) y el token CSRF funcionan sin CORS ni cambios en la API.
+- `VITE_API_URL` se queda en `/api` (también en Vercel). Si apuntara a la URL de Render, el
+  navegador no enviaría la cookie de sesión ni podría leer la de CSRF.
+- La segunda regla (`/(.*)` → `/index.html`) hace que recargar una ruta de React Router
+  (`/customers`, `/users`…) no dé 404.
+
+En Vercel: importa el repositorio; detecta Vite solo (build `npm run build`, salida `dist`). En
+**Environment Variables** agrega `VITE_API_URL=/api` (el `.env` no se sube a git).
+
+En el plan gratuito de Render la API se duerme tras un rato sin uso: la primera petición puede
+tardar cerca de un minuto.

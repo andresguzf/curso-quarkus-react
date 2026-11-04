@@ -10,10 +10,11 @@ UI, mensajes flash, CRUD de clientes, administración de usuarios y revisión fi
 Guidelines y checklist de `react-rules`). En desarrollo, `/ui-kit` (`UiKitPage`, ruta lazy que no entra al build) muestra todos los componentes.
 
 ```
-vite.config.ts      plugins react + tailwindcss, alias @/ → src/, proxy /api → localhost:8080
+vite.config.ts      plugins react + tailwindcss, alias @/ → src/, proxy /api → API_PROXY_TARGET (por defecto localhost:8080)
 src/index.css       @import 'tailwindcss' + @theme (fuente Inter, colores brand-* = indigo) + tema claro estilo Apple
 .oxlintrc.json      linter oxlint (plantilla de Vite) con rules-of-hooks y exhaustive-deps
-.env.example        VITE_API_URL=/api (.env está en .gitignore)
+.env.example        VITE_API_URL=/api y API_PROXY_TARGET comentado (.env está en .gitignore)
+vercel.json         rewrites: /api/* → https://curso-quarkus-api.onrender.com/api/* y SPA → /index.html
 .claude/launch.json servidor de desarrollo para el navegador integrado (npm run dev, puerto 5173)
 .claude/skills/react-rules/SKILL.md            skill propia del proyecto
 .claude/skills/web-design-guidelines           symlink a .agents/skills/web-design-guidelines
@@ -60,6 +61,9 @@ Cómo integrarse:
 - **Errores:** la API siempre responde un `ErrorDto` JSON; valídalo con Zod y muestra su mensaje.
 - **Mismo origen:** la API no tiene CORS configurado. En desarrollo usa el `server.proxy` de Vite
   para `/api` → `http://localhost:8080`, así las cookies `SameSite=Strict` funcionan sin tocar el backend.
+  `API_PROXY_TARGET=https://curso-quarkus-api.onrender.com` en `.env` prueba el dev server contra Render
+  (`changeOrigin: true`; cookies `Secure`: Chrome sí, Safari no). En producción (Vercel) hace lo mismo `vercel.json` hacia Render; `VITE_API_URL` sigue en `/api`.
+  Nunca pongas la URL de Render en `VITE_API_URL`: sitio distinto = sin cookie de sesión ni CSRF.
 - Las rutas y pantallas se adaptan al rol (`user` / `admin`), pero la autorización real la hace la API.
 
 ## Capa de datos
